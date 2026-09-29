@@ -24,17 +24,33 @@
   function getBaseUrl() {
     var explicit =
       CURRENT_SCRIPT && CURRENT_SCRIPT.getAttribute("data-blazer-chat-url");
-    if (explicit) return explicit.replace(/\/$/, "");
+
+    if (explicit) {
+      var sanitized = sanitizeOrigin(explicit.replace(/\/$/, ""));
+      if (sanitized) return sanitized;
+    }
 
     // Fall back to the origin the script itself was loaded from.
     if (CURRENT_SCRIPT && CURRENT_SCRIPT.src) {
-      try {
-        return new URL(CURRENT_SCRIPT.src).origin;
-      } catch {
-        // ignore, fall through to default below
-      }
+      var scriptOrigin = sanitizeOrigin(CURRENT_SCRIPT.src);
+      if (scriptOrigin) return scriptOrigin;
     }
+
     return "";
+  }
+
+  // Only allow http(s) URLs to be used as the iframe source, guarding
+  // against `javascript:`/`data:` URLs injected via the data attribute.
+  function sanitizeOrigin(candidate) {
+    try {
+      var parsed = new URL(candidate, window.location.href);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        return null;
+      }
+      return parsed.origin;
+    } catch {
+      return null;
+    }
   }
 
   function createIframe(baseUrl) {
